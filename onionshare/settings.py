@@ -59,6 +59,7 @@ class Settings(object):
         # Dictionary of available languages in this version of OnionShare,
         # mapped to the language name, in that language
         self.available_locales = {
+            'ar': 'العربية',                    # Arabic
             #'bn': 'বাংলা', # Bengali (commented out because not at 90% translation)
             'ca': 'Català',                     # Catalan
             'zh_Hant': '正體中文 (繁體)',         # Traditional Chinese
