@@ -2,7 +2,7 @@
 """
 OnionShare | https://onionshare.org/
 
-Copyright (C) 2014-2021 Micah Lee, et al. <micah@micahflee.com>
+Copyright (C) 2014-2022 Micah Lee, et al. <micah@micahflee.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ import sys
 import threading
 import time
 import shutil
+import re
 from pkg_resources import resource_filename
 
 import colorama
@@ -312,7 +313,6 @@ class Common:
         """
         Returns the absolute path of a resource
         """
-        self.log("Common", "get_resource_path", f"filename={filename}")
         path = resource_filename("onionshare_cli", os.path.join("resources", filename))
         self.log("Common", "get_resource_path", f"filename={filename}, path={path}")
         return path
@@ -329,23 +329,55 @@ class Common:
             tor_geo_ip_file_path = os.path.join(prefix, "share/tor/geoip")
             tor_geo_ipv6_file_path = os.path.join(prefix, "share/tor/geoip6")
         elif self.platform == "Windows":
+            # In Windows, the Tor binaries are in the onionshare package, not the onionshare_cli package
             base_path = self.get_resource_path("tor")
-            tor_path = os.path.join(base_path, "Tor", "tor.exe")
-            obfs4proxy_file_path = os.path.join(base_path, "Tor", "obfs4proxy.exe")
-            snowflake_file_path = os.path.join(base_path, "Tor", "snowflake-client.exe")
-            meek_client_file_path = os.path.join(base_path, "Tor", "meek-client.exe")
-            tor_geo_ip_file_path = os.path.join(base_path, "Data", "Tor", "geoip")
-            tor_geo_ipv6_file_path = os.path.join(base_path, "Data", "Tor", "geoip6")
+            base_path = base_path.replace("onionshare_cli", "onionshare")
+            tor_path = os.path.join(base_path, "tor.exe")
+
+            # If tor.exe isn't there, mayber we're running from the source tree
+            if not os.path.exists(tor_path):
+                self.log(
+                    "Common", "get_tor_paths", f"Cannot find tor.exe at {tor_path}"
+                )
+                base_path = os.path.join(os.getcwd(), "onionshare", "resources", "tor")
+
+                tor_path = os.path.join(base_path, "tor.exe")
+                if not os.path.exists(tor_path):
+                    self.log(
+                        "Common", "get_tor_paths", f"Cannot find tor.exe at {tor_path}"
+                    )
+                    raise CannotFindTor()
+
+            obfs4proxy_file_path = os.path.join(base_path, "obfs4proxy.exe")
+            snowflake_file_path = os.path.join(base_path, "snowflake-client.exe")
+            meek_client_file_path = os.path.join(base_path, "meek-client.exe")
+            tor_geo_ip_file_path = os.path.join(base_path, "geoip")
+            tor_geo_ipv6_file_path = os.path.join(base_path, "geoip6")
+
         elif self.platform == "Darwin":
-            tor_path = shutil.which("tor")
-            if not tor_path:
-                raise CannotFindTor()
-            obfs4proxy_file_path = shutil.which("obfs4proxy")
-            snowflake_file_path = shutil.which("snowflake-client")
-            meek_client_file_path = shutil.which("meek-client")
-            prefix = os.path.dirname(os.path.dirname(tor_path))
-            tor_geo_ip_file_path = os.path.join(prefix, "share/tor/geoip")
-            tor_geo_ipv6_file_path = os.path.join(prefix, "share/tor/geoip6")
+            # Let's see if we have tor binaries in the onionshare GUI package
+            base_path = self.get_resource_path("tor")
+            base_path = base_path.replace("onionshare_cli", "onionshare")
+            tor_path = os.path.join(base_path, "tor")
+            if os.path.exists(tor_path):
+                obfs4proxy_file_path = os.path.join(base_path, "obfs4proxy")
+                snowflake_file_path = os.path.join(base_path, "snowflake-client")
+                meek_client_file_path = os.path.join(base_path, "meek-client")
+                tor_geo_ip_file_path = os.path.join(base_path, "geoip")
+                tor_geo_ipv6_file_path = os.path.join(base_path, "geoip6")
+            else:
+                # Fallback to looking in the path
+                tor_path = shutil.which("tor")
+                if not os.path.exists(tor_path):
+                    raise CannotFindTor()
+
+                obfs4proxy_file_path = shutil.which("obfs4proxy")
+                snowflake_file_path = shutil.which("snowflake-client")
+                meek_client_file_path = shutil.which("meek-client")
+                prefix = os.path.dirname(os.path.dirname(tor_path))
+                tor_geo_ip_file_path = os.path.join(prefix, "share/tor/geoip")
+                tor_geo_ipv6_file_path = os.path.join(prefix, "share/tor/geoip6")
+
         elif self.platform == "BSD":
             tor_path = "/usr/local/bin/tor"
             tor_geo_ip_file_path = "/usr/local/share/tor/geoip"
@@ -440,6 +472,40 @@ class Common:
 
         r = random.SystemRandom()
         return "-".join(r.choice(wordlist) for _ in range(word_count))
+
+    def check_bridges_valid(self, bridges):
+        """
+        Does a regex check against a supplied list of bridges, to make sure they
+        are valid strings depending on the bridge type.
+        """
+        valid_bridges = []
+        self.log("Common", "check_bridges_valid", "Checking bridge syntax")
+        for bridge in bridges:
+            if bridge != "":
+                # Check the syntax of the custom bridge to make sure it looks legitimate
+                ipv4_pattern = re.compile(
+                    "(obfs4\s+)?(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):([0-9]+)(\s+)([A-Z0-9]+)(.+)$"
+                )
+                ipv6_pattern = re.compile(
+                    "(obfs4\s+)?\[(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))\]:[0-9]+\s+[A-Z0-9]+(.+)$"
+                )
+                meek_lite_pattern = re.compile(
+                    "(meek_lite)(\s)+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+)(\s)+([0-9A-Z]+)(\s)+url=(.+)(\s)+front=(.+)"
+                )
+                snowflake_pattern = re.compile(
+                    "(snowflake)(\s)+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+)(\s)+([0-9A-Z]+)"
+                )
+                if (
+                    ipv4_pattern.match(bridge)
+                    or ipv6_pattern.match(bridge)
+                    or meek_lite_pattern.match(bridge)
+                    or snowflake_pattern.match(bridge)
+                ):
+                    valid_bridges.append(bridge)
+        if valid_bridges:
+            return valid_bridges
+        else:
+            return False
 
     def is_flatpak(self):
         """

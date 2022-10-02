@@ -2,7 +2,7 @@
 """
 OnionShare | https://onionshare.org/
 
-Copyright (C) 2014-2021 Micah Lee, et al. <micah@micahflee.com>
+Copyright (C) 2014-2022 Micah Lee, et al. <micah@micahflee.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import logging
+import mimetypes
 import os
 import queue
 import requests
@@ -44,7 +45,7 @@ from .chat_mode import ChatModeWeb
 
 # Stub out flask's show_server_banner function, to avoiding showing warnings that
 # are not applicable to OnionShare
-def stubbed_show_server_banner(env, debug, app_import_path, eager_loading):
+def stubbed_show_server_banner(env, debug, app_import_path=None, eager_loading=None):
     pass
 
 
@@ -79,6 +80,16 @@ class Web:
         self.common.log("Web", "__init__", f"is_gui={is_gui}, mode={mode}")
 
         self.settings = mode_settings
+
+        # Flask guesses the MIME type of files from a database on the operating
+        # system.
+        # Some operating systems, or applications that can modify the database
+        # (such as the Windows Registry) can treat .js files as text/plain,
+        # which breaks the chat app due to X-Content-Type-Options: nosniff.
+        #
+        # It's probably #notourbug but we can fix it by forcing the mimetype.
+        # https://github.com/onionshare/onionshare/issues/1443
+        mimetypes.add_type("text/javascript", ".js")
 
         # The flask app
         self.app = Flask(
@@ -151,11 +162,15 @@ class Web:
         elif self.mode == "website":
             self.website_mode = WebsiteModeWeb(self.common, self)
         elif self.mode == "chat":
-            self.socketio = SocketIO()
+            if self.common.verbose:
+                self.socketio = SocketIO(
+                    async_mode="gevent", logger=True, engineio_logger=True
+                )
+            else:
+                self.socketio = SocketIO(async_mode="gevent")
             self.socketio.init_app(self.app)
             self.chat_mode = ChatModeWeb(self.common, self)
 
-        self.cleanup_tempfiles = []
         self.cleanup_tempdirs = []
 
     def get_mode(self):
@@ -389,13 +404,8 @@ class Web:
         """
         self.common.log("Web", "cleanup")
 
-        # Close all of the tempfile.NamedTemporaryFile
-        for file in self.cleanup_tempfiles:
-            file.close()
-
         # Clean up the tempfile.NamedTemporaryDirectory objects
         for dir in self.cleanup_tempdirs:
             dir.cleanup()
 
-        self.cleanup_tempfiles = []
         self.cleanup_tempdirs = []

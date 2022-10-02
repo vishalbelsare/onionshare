@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import secrets
 import platform
+import sys
 
 from PySide2 import QtCore, QtTest, QtWidgets
 
@@ -21,12 +22,12 @@ from onionshare import strings
 class GuiBaseTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        common = Common(verbose=True)
+        common = sys.onionshare_common
+        qtapp = sys.onionshare_qtapp
 
         # Delete any old test data that might exist
         shutil.rmtree(common.build_data_dir(), ignore_errors=True)
 
-        qtapp = Application(common)
         common.gui = GuiCommon(common, qtapp, local_only=True)
         cls.gui = MainWindow(common, filenames=None)
         cls.gui.qtapp = qtapp
@@ -177,8 +178,15 @@ class GuiBaseTest(unittest.TestCase):
         tab.get_mode().toggle_history.click()
         self.assertEqual(tab.get_mode().history.isVisible(), not currently_visible)
 
+    def javascript_is_correct_mime_type(self, tab, file):
+        """Test that the javascript file send.js is fetchable and that its MIME type is correct"""
+        path = f"{tab.get_mode().web.static_url_path}/js/{file}"
+        url = f"http://127.0.0.1:{tab.app.port}/{path}"
+        r = requests.get(url)
+        self.assertTrue(r.headers["Content-Type"].startswith("text/javascript;"))
+
     def history_indicator(self, tab, indicator_count="1"):
-        """Test that we can make sure the history is toggled off, do an action, and the indiciator works"""
+        """Test that we can make sure the history is toggled off, do an action, and the indicator works"""
         # Make sure history is toggled off
         if tab.get_mode().history.isVisible():
             tab.get_mode().toggle_history.click()
@@ -287,23 +295,42 @@ class GuiBaseTest(unittest.TestCase):
         if not tab.settings.get("general", "public"):
             # Both the private key field and the toggle button should be seen
             self.assertTrue(tab.get_mode().server_status.private_key.isVisible())
-            self.assertTrue(tab.get_mode().server_status.client_auth_toggle_button.isVisible())
-            self.assertEqual(tab.get_mode().server_status.client_auth_toggle_button.text(), strings._("gui_reveal"))
+            self.assertTrue(
+                tab.get_mode().server_status.client_auth_toggle_button.isVisible()
+            )
+            self.assertEqual(
+                tab.get_mode().server_status.client_auth_toggle_button.text(),
+                strings._("gui_reveal"),
+            )
 
             # Test that the key is masked unless Reveal is clicked
-            self.assertEqual(tab.get_mode().server_status.private_key.text(), "*" * len(tab.app.auth_string))
+            self.assertEqual(
+                tab.get_mode().server_status.private_key.text(),
+                "*" * len(tab.app.auth_string),
+            )
 
             # Click reveal
             tab.get_mode().server_status.client_auth_toggle_button.click()
 
             # The real private key should be revealed
-            self.assertEqual(tab.get_mode().server_status.private_key.text(), tab.app.auth_string)
-            self.assertEqual(tab.get_mode().server_status.client_auth_toggle_button.text(), strings._("gui_hide"))
+            self.assertEqual(
+                tab.get_mode().server_status.private_key.text(), tab.app.auth_string
+            )
+            self.assertEqual(
+                tab.get_mode().server_status.client_auth_toggle_button.text(),
+                strings._("gui_hide"),
+            )
 
             # Click hide, key should be masked again
             tab.get_mode().server_status.client_auth_toggle_button.click()
-            self.assertEqual(tab.get_mode().server_status.private_key.text(), "*" * len(tab.app.auth_string))
-            self.assertEqual(tab.get_mode().server_status.client_auth_toggle_button.text(), strings._("gui_reveal"))
+            self.assertEqual(
+                tab.get_mode().server_status.private_key.text(),
+                "*" * len(tab.app.auth_string),
+            )
+            self.assertEqual(
+                tab.get_mode().server_status.client_auth_toggle_button.text(),
+                strings._("gui_reveal"),
+            )
         else:
             self.assertFalse(tab.get_mode().server_status.private_key.isVisible())
 
@@ -422,7 +449,6 @@ class GuiBaseTest(unittest.TestCase):
             tab.get_mode().server_status.copy_client_auth_button.isVisible()
         )
 
-
     def web_server_is_stopped(self, tab):
         """Test that the web server also stopped"""
         QtTest.QTest.qWait(800, self.gui.qtapp)
@@ -508,7 +534,9 @@ class GuiBaseTest(unittest.TestCase):
         )
         tab.get_mode().server_status.copy_client_auth_button.click()
         clipboard = tab.common.gui.qtapp.clipboard()
-        self.assertEqual(clipboard.text(), "E2GOT5LTUTP3OAMRCRXO4GSH6VKJEUOXZQUC336SRKAHTTT5OVSA")
+        self.assertEqual(
+            clipboard.text(), "E2GOT5LTUTP3OAMRCRXO4GSH6VKJEUOXZQUC336SRKAHTTT5OVSA"
+        )
 
     def clientauth_is_not_visible(self, tab):
         """Test that the ClientAuth button is not visible"""
@@ -516,19 +544,19 @@ class GuiBaseTest(unittest.TestCase):
             tab.get_mode().server_status.copy_client_auth_button.isVisible()
         )
 
-    def hit_405(self, url, expected_resp, data = {}, methods = [] ):
+    def hit_405(self, url, expected_resp, data={}, methods=[]):
         """Test various HTTP methods and the response"""
         for method in methods:
             if method == "put":
-                r = requests.put(url, data = data)
+                r = requests.put(url, data=data)
             if method == "post":
-                r = requests.post(url, data = data)
+                r = requests.post(url, data=data)
             if method == "delete":
                 r = requests.delete(url)
             if method == "options":
                 r = requests.options(url)
             self.assertTrue(expected_resp in r.text)
-            self.assertFalse('Werkzeug' in r.headers)
+            self.assertFalse("Werkzeug" in r.headers)
 
     # Grouped tests follow from here
 

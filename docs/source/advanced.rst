@@ -6,19 +6,17 @@ Advanced Usage
 Save Tabs
 ---------
 
-Everything in OnionShare is temporary by default. If you close an OnionShare tab, its address no longer exists and it can't be used again.
-Sometimes you might want an OnionShare service to be persistent.
-This is useful if you want to host a website available from the same OnionShare address even if you reboot your computer.
+Closing OnionShare tabs you host destroys them, preventing reuse.
+Persistently hosted websites are available on the same address even if the computer they are shared from is rebooted.
 
-To make any tab persistent, check the "Save this tab, and automatically open it when I open OnionShare" box before starting the server.
-When a tab is saved a purple pin icon appears to the left of its server status.
+Make any tab persistent by checking the "Always open this tab when OnionShare is started" box before starting your server.
 
 .. image:: _static/screenshots/advanced-save-tabs.png
 
-When you quit OnionShare and then open it again, your saved tabs will start opened.
-You'll have to manually start each service, but when you do they will start with the same OnionShare address and private key.
+When opening OnionShare, your saved tabs from the prior session will start opened.
+Each service then can be started manually, and will be available on the same OnionShare address and be protected by the same private key.
 
-If you save a tab, a copy of that tab's onion service secret key will be stored on your computer with your OnionShare settings.
+If you save a tab, a copy of its onion service secret key is stored on your computer.
 
 .. _turn_off_private_key:
 
@@ -27,37 +25,40 @@ Turn Off Private Key
 
 By default, all OnionShare services are protected with a private key, which Tor calls "client authentication".
 
-When browsing to an OnionShare service in Tor Browser, Tor Browser will prompt for the private key to be entered.
+The Tor Browser will ask you to enter your private key when you load an OnionShare service.
+If you want allow the public to use your service, it's better to disable the private key altogether.
 
-Sometimes you might want your OnionShare service to be accessible to the public, like if you want to set up an OnionShare receive service so the public can securely and anonymously send you files.
-In this case, it's better to disable the private key altogether.
-
-To turn off the private key for any tab, check the "This is a public OnionShare service (disables private key)" box before starting the server. Then the server will be public and won't need a private key to view in Tor Browser.
+To turn off the private key for any tab, check the "This is a public OnionShare service (disables private key)" box before starting the server.
+Then the server will be public and a private key is not needed to load it in the Tor Browser.
 
 .. _custom_titles:
 
 Custom Titles
 -------------
 
-By default, when people load an OnionShare service in Tor Browser they see the default title for the type of service. For example, the default title of a chat service is "OnionShare Chat".
+When people load OnionShare services in the Tor Browser they see the default title for each type of service.
+For example, the default title for chat services is "OnionShare Chat".
 
-If you want to choose a custom title, set the "Custom title" setting before starting a server.
+If you edit the "Custom title" setting before starting a server you can change it.
 
 Scheduled Times
 ---------------
 
 OnionShare supports scheduling exactly when a service should start and stop.
-Before starting a server, click "Show advanced settings" in its tab and then check the boxes next to either "Start onion service at scheduled time", "Stop onion service at scheduled time", or both, and set the respective desired dates and times.
+Before starting a server, click "Show advanced settings" in its tab and then check the boxes next to either
+"Start onion service at scheduled time", "Stop onion service at scheduled time", or both, and set the respective desired dates and times.
 
-If you scheduled a service to start in the future, when you click the "Start sharing" button you will see a timer counting down until it starts.
-If you scheduled it to stop in the future, after it's started you will see a timer counting down to when it will stop automatically.
+Services scheduled to start in the future display a countdown timer when when the "Start sharing" button is clicked.
+Services scheduled to stop in the future display a countdown timer when started.
 
-**Scheduling an OnionShare service to automatically start can be used as a dead man's switch**, where your service will be made public at a given time in the future if anything happens to you.
+**Scheduling an OnionShare service to automatically start can be used as a dead man's switch**.
+This means your service is made public at a given time in the future if you are not there to prevent it.
 If nothing happens to you, you can cancel the service before it's scheduled to start.
 
 .. image:: _static/screenshots/advanced-schedule-start-timer.png
 
-**Scheduling an OnionShare service to automatically stop can be useful to limit exposure**, like if you want to share secret documents while making sure they're not available on the internet for more than a few days.
+**Scheduling an OnionShare service to automatically stop limits its exposure**.
+If you want to share secret info or something that will be outdated, you can do so for selected limited time.
 
 .. image:: _static/screenshots/advanced-schedule-stop-timer.png
 
@@ -78,14 +79,14 @@ Then run it like this::
 
     onionshare-cli --help
 
-For information about installing it on different operating systems, see the `CLI readme file <https://github.com/onionshare/onionshare/blob/develop/cli/README.md>`_ in the git repository.
+Info about installing it on different operating systems can be found in the `CLI README file <https://github.com/onionshare/onionshare/blob/develop/cli/README.md>`_ in the Git repository.
 
-If you installed OnionShare using the Linux Snapcraft package, you can also just run ``onionshare.cli`` to access the command-line interface version.
+If you installed OnionShare using the Snap package, you can also just run ``onionshare.cli`` to access the command-line interface version.
 
 Usage
 ^^^^^
 
-You can browse the command-line documentation by running ``onionshare --help``::
+Browse the command-line documentation by running ``onionshare --help``::
 
     $ onionshare-cli --help
     ╭───────────────────────────────────────────╮
@@ -119,7 +120,7 @@ You can browse the command-line documentation by running ``onionshare --help``::
       filename                  List of files or folders to share
 
     optional arguments:
-      -h, --help                show this help message and exit
+      -h, --help                Show this help message and exit
       --receive                 Receive files
       --website                 Publish website
       --chat                    Start chat server
@@ -133,8 +134,8 @@ You can browse the command-line documentation by running ``onionshare --help``::
       --auto-start-timer SECONDS
                                 Start onion service at scheduled time (N seconds from now)
       --auto-stop-timer SECONDS
-                                Stop onion service at schedule time (N seconds from now)
-      --no-autostop-sharing     Share files: Continue sharing after files have been sent (default is to stop sharing)
+                                Stop onion service at scheduled time (N seconds from now)
+      --no-autostop-sharing     Share files: Continue sharing after files have been sent (the default is to stop sharing)
       --data-dir data_dir       Receive files: Save files received to this directory
       --webhook-url webhook_url
                                 Receive files: URL to receive webhook notifications
@@ -143,3 +144,21 @@ You can browse the command-line documentation by running ``onionshare --help``::
       --disable_csp             Publish website: Disable the default Content Security Policy header (allows your website to use third-party resources)
       --custom_csp custom_csp   Publish website: Set a custom Content Security Policy header
       -v, --verbose             Log OnionShare errors to stdout, and web errors to disk
+
+
+
+Keyboard Shortcuts
+------------------
+
+The OnionShare desktop application contains some keyboard shortcuts, for convenience and accessibility::
+
+    Ctrl T - New Tab
+    Ctrl X - Closes current tab
+
+And from the main mode chooser screen::
+
+    Ctrl S - Share mode
+    Ctrl R - Receive mode
+    Ctrl W - Website mode
+    Ctrl C - Chat mode
+    Ctrl H - Settings tab

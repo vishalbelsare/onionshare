@@ -4,7 +4,7 @@
 
 # Usage
 display_usage() {
-	echo "Usage: $0 [tag]"
+  echo "Usage: $0 [tag]"
 }
 
 if [ $# -lt 1 ]
@@ -36,7 +36,7 @@ fi
 mkdir -p build/source
 mkdir -p dist
 cd build/source
-git clone https://github.com/onionshare/onionshare.git
+git clone --single-branch --branch $TAG --depth 1 https://github.com/onionshare/onionshare.git
 cd onionshare
 
 # Verify tag
@@ -46,13 +46,13 @@ then
   echo "Tag does not verify"
   exit 1
 fi
-cat ../verify.txt |grep "using RSA key 927F419D7EC82C2F149C1BD1403C2657CD994F73"
+cat ../verify.txt | grep "using RSA key 927F419D7EC82C2F149C1BD1403C2657CD994F73"
 if [ $? -ne 0 ]
 then
   echo "Tag signed with wrong key"
   exit 1
 fi
-cat ../verify.txt |grep "^gpg: Good signature from"
+cat ../verify.txt | grep "^gpg: Good signature from"
 if [ $? -ne 0 ]
 then
   echo "Tag verification missing 'Good signature from'"
@@ -65,7 +65,7 @@ git checkout $TAG
 # Delete .git, compress, and PGP sign
 cd ..
 rm -rf onionshare/.git
-tar -cf onionshare-$VERSION.tar.gz onionshare/
+tar -czf onionshare-$VERSION.tar.gz onionshare/
 
 # Move source package to dist
 cd ../..

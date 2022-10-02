@@ -50,7 +50,6 @@ def web_obj(temp_dir, common_obj, mode, num_files=0):
     web = Web(common_obj, False, mode_settings, mode)
     web.running = True
 
-    web.cleanup_tempfiles == []
     web.cleanup_tempdirs == []
     web.app.testing = True
 
@@ -228,7 +227,7 @@ class TestWeb:
         data_dir_date = os.path.join(data_dir, os.listdir(data_dir)[0])
         filenames = os.listdir(data_dir_date)
         assert len(filenames) == 2
-        time_str = filenames[0][0:6]
+        time_str = filenames[0][0:12]
         assert time_str in filenames
         assert f"{time_str}-message.txt" in filenames
         data_dir_time = os.path.join(data_dir_date, time_str)
@@ -260,7 +259,7 @@ class TestWeb:
         data_dir_date = os.path.join(data_dir, os.listdir(data_dir)[0])
         filenames = os.listdir(data_dir_date)
         assert len(filenames) == 1
-        time_str = filenames[0][0:6]
+        time_str = filenames[0][0:12]
         assert time_str in filenames
         assert f"{time_str}-message.txt" not in filenames
         data_dir_time = os.path.join(data_dir_date, time_str)
@@ -308,17 +307,13 @@ class TestWeb:
     def test_cleanup(self, common_obj, temp_dir_1024):
         web = web_obj(temp_dir_1024, common_obj, "share", 3)
 
-        temp_file = tempfile.NamedTemporaryFile()
         temp_dir = tempfile.TemporaryDirectory()
 
-        web.cleanup_tempfiles = [temp_file]
         web.cleanup_tempdirs = [temp_dir]
         web.cleanup()
 
-        assert os.path.exists(temp_file.name) is False
         assert os.path.exists(temp_dir.name) is False
 
-        assert web.cleanup_tempfiles == []
         assert web.cleanup_tempdirs == []
 
 

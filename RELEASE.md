@@ -7,20 +7,14 @@ Unless you're a core OnionShare developer making a release, you'll probably neve
 Before making a release, you must update the version in these places:
 
 - [ ] `cli/pyproject.toml`
-- [ ] `cli/setup.py`
 - [ ] `cli/onionshare_cli/resources/version.txt`
-- [ ] `desktop/pyproject.toml` (under `version` and **don't forget** the `./onionshare_cli-$VERSION-py3-none-any.whl` dependency)
-- [ ] `desktop/src/setup.py`
-- [ ] `desktop/src/org.onionshare.OnionShare.appdata.xml`
+- [ ] `desktop/pyproject.toml`
+- [ ] `desktop/setup.py`
+- [ ] `desktop/org.onionshare.OnionShare.appdata.xml`
 - [ ] `docs/source/conf.py` (`version` at the top, and the `versions` list too)
 - [ ] `snap/snapcraft.yaml`
 
 If you update `flask-socketio`, ensure that you also update the [socket.io.min.js](https://github.com/micahflee/onionshare/blob/develop/cli/onionshare_cli/resources/static/js/socket.io.min.js) file to a version that is [supported](https://flask-socketio.readthedocs.io/en/latest/#version-compatibility) by the updated version of `flask-socketio`.
-
-Use tor binaries from the latest Tor Browser:
-
-- [ ] `desktop/scripts/get-tor-osx.py`
-- [ ] `desktop/scripts/get-tor-windows.py`
 
 Update the documentation:
 
@@ -31,6 +25,7 @@ Finalize localization:
 - [ ] Merge all the translations from weblate
 - [ ] In `docs` run `poetry run ./check-weblate.py [API_KEY]` to see which translations are >90% in the app and docs
 - [ ] Edit `cli/onionshare_cli/settings.py`, make sure `self.available_locales` lists only locales that are >90% translated
+- [ ] From the `desktop` folder in the virtual env, run `./scripts/countries-update-list.py` to make sure the localized country list for censorship circumvention is available in all available languages
 - [ ] Edit `docs/source/conf.py`, make sure `languages` lists only languages that are >90% translated
 - [ ] Edit `docs/build.sh` and make sure `LOCALES=` lists the same languages as above, in `docs/source/conf.py`
 - [ ] Make sure the latest documentation is built and committed:
@@ -42,14 +37,19 @@ Finalize localization:
 
 You also must edit these files:
 
-- [ ] `desktop/src/org.onionshare.OnionShare.appdata.xml` should have the correct release date, and links to correct screenshots
+- [ ] `desktop/org.onionshare.OnionShare.appdata.xml` should have the correct release date, and links to correct screenshots
 - [ ] `CHANGELOG.md` should be updated to include a list of all major changes since the last release
 
 Make sure snapcraft packaging works. In `snap/snapcraft.yaml`:
 
-- [ ] The `tor`, `libevent`, and `obfs4` parts should be updated if necessary
-- [ ] All python packages should be updated to match `cli/pyproject.toml` and `desktop/pyproject.toml`
-- [ ] Test the snap package, ensure it works
+- [ ] The `tor`, `libevent`, `obfs4`, `snowflake-client`, and `meek-client` parts should be updated if necessary
+- [ ] All python packages in the `onionshare` part should be updated to match `desktop/pyproject.toml`
+- [ ] With every commit to the `develop` branch, Snapcraft's CI should trigger builds. Make sure the builds all succeeded at https://snapcraft.io/onionshare/builds (you must be logged in), and test them
+
+Update to the latest version of Tor:
+
+- [ ] Edit `desktop/scripts/get-tor.py` to use the latest version of Tor Browser, and the latest sha256 checksums.
+- [ ] Update the version of `meek`, `obfs4proxy`, and `snowflake` in the `desktop/scripts/build-pt-*` scripts, both the bash and PowerShell scripts.
 
 Finally:
 
@@ -78,10 +78,10 @@ Build and test the snap before publishing (note that `--dangerous` lets you inst
 
 ```sh
 snapcraft
-snap install --dangerous ./onionshare_$VERSION_amd64.snap
+snap install --dangerous ./onionshare_${VERSION}_amd64.snap
 ```
 
-This will create `onionshare_$VERSION_amd64.snap`.
+This will create `onionshare_${VERSION}_amd64.snap`.
 
 Run the OnionShare snap locally:
 
@@ -94,76 +94,72 @@ Upload the to Snapcraft:
 
 ```sh
 snapcraft login
-snapcraft upload --release=stable onionshare_$VERSION_amd64.snap
-```
-
-## Linux AppImage release
-
-_Note: AppImage packages are currently broken due to [this briefcase bug](https://github.com/beeware/briefcase/issues/504). Until it's fixed, OnionShare for Linux will only be available in Flatpak and Snapcraft._
-
-Set up the development environment described in `README.md`.
-
-Make sure your virtual environment is active:
-
-```sh
-. venv/bin/activate
-```
-
-Run the AppImage build script:
-
-```sh
-./package/linux/build-appimage.py
+snapcraft upload --release=stable onionshare_${VERSION}_amd64.snap
 ```
 
 ## Windows
 
-Set up the development environment described in `README.md`. And install the [Windows 10 SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk) and add `C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x86` to your path.
+Set up the packaging environment:
 
-Make sure your virtual environment is active:
+- Install the Windows SDK from here: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/ and add `C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool` to the path (you'll need it for `signtool.exe`)
+- Go to https://dotnet.microsoft.com/download/dotnet-framework and download and install .NET Framework 3.5 SP1 Runtime. I downloaded `dotnetfx35.exe`.
+- Go to https://wixtoolset.org/releases/ and download and install WiX toolset. I downloaded `wix311.exe`. Add `C:\Program Files (x86)\WiX Toolset v3.11\bin` to the path.
+
+Github Actions will build the binaries. Find the Github Actions `build` workflow, switch to the summary tab, and download:
+
+- `build-win32`
+- `build-win64`
+
+Extract these files, change to the `desktop` folder, and run:
 
 ```
-venv\Scripts\activate.bat
+poetry run python .\scripts\build-windows.py codesign [onionshare_win32_path] [onionshare_win64_path]
+poetry run python .\scripts\build-windows.py package [onionshare_win32_path] [onionshare_win64_path]
 ```
 
-Run the Windows build script:
+This will create:
 
-```
-python package\windows\build.py
-```
-
-This will create `desktop/windows/OnionShare-$VERSION.msi`, signed.
+- `desktop/dist/OnionShare-win32-$VERSION.msi`
+- `desktop/dist/OnionShare-win64-$VERSION.msi`
 
 ## macOS
 
-Set up the development environment described in `README.md`. And install `create-dmg`:
+Set up the packaging environment:
+
+- Install create-dmg: `brew install create-dmg`
+
+Github Actions will build the binaries. Find the Github Actions `build` workflow, switch to the summary tab, and download:
+
+- `build-mac`
+
+Extract these files, change to the `desktop` folder, and run:
 
 ```sh
-brew install create-dmg
+poetry run python ./scripts/build-macos.py codesign [app_path]
+poetry run python ./scripts/build-macos.py package [app_path]
 ```
 
-Make sure your virtual environment is active:
+The will create `dist/OnionShare-$VERSION.dmg`.
+
+Now, notarize the release.
 
 ```sh
-. venv/bin/activate
+export APPLE_PASSWORD="changeme" # app-specific Apple ID password
+export VERSION=$(cat ../cli/onionshare_cli/resources/version.txt)
+
+# Notarize it
+xcrun altool --notarize-app --primary-bundle-id "com.micahflee.onionshare" -u "micah@micahflee.com" -p "$APPLE_PASSWORD" --file dist/OnionShare-$VERSION.dmg
+# Wait for it to get approved, check status with
+xcrun altool --notarization-history 0 -u "micah@micahflee.com" -p "$APPLE_PASSWORD"
+# After it's approved, staple the ticket
+xcrun stapler staple dist/OnionShare-$VERSION.dmg
 ```
 
-Run the macOS build script:
-
-```sh
-./package/macos/build.py --with-codesign
-```
-
-Now, notarize the release. You must have an app-specific Apple ID password saved in the login keychain called `onionshare-notarize`.
-
-- Notarize it: `xcrun altool --notarize-app --primary-bundle-id "com.micahflee.onionshare" -u "micah@micahflee.com" -p "@keychain:onionshare-notarize" --file macOS/OnionShare.dmg`
-- Wait for it to get approved, check status with: `xcrun altool --notarization-history 0 -u "micah@micahflee.com" -p "@keychain:onionshare-notarize"`
-- After it's approved, staple the ticket: `xcrun stapler staple macOS/OnionShare.dmg`
-
-This will create `desktop/macOS/OnionShare.dmg`, signed and notarized.
+This will create `desktop/dist/OnionShare-$VERSION.dmg`, signed and notarized.
 
 ## Source package
 
-To make a source package, run `./build-source.sh $TAG`, where `$TAG` is the the name of the signed git tag, e.g. `v2.1`.
+To make a source package, run `./build-source.sh $TAG`, where `$TAG` is the name of the signed git tag, e.g. `v2.1`.
 
 This will create `dist/onionshare-$VERSION.tar.gz`.
 
@@ -173,7 +169,7 @@ This will create `dist/onionshare-$VERSION.tar.gz`.
 
 After following all of the previous steps, gather these files:
 
-- `onionshare_$VERSION_amd64.snap`
+- `onionshare_${VERSION}_amd64.snap`
 - `OnionShare-$VERSION.msi`
 - `OnionShare.dmg` (rename it to `OnionShare-$VERSION.dmg`)
 - `onionshare-$VERSION.tar.gz`

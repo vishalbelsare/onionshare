@@ -1,5 +1,28 @@
 # OnionShare Changelog
 
+## 2.6
+
+* Major feature: a new 'Quickstart' screen, which enables toggling on or off an animated automatic connection to Tor. This allows configuring network settings prior to automatic connection.
+* Major feature: Censorship circumvention. Use new features in the upstream Tor API to try to automatically obtain bridges depending on the user's location.
+* New feature: automatically fetch the built-in bridges from the upstream Tor API rather than hardcode them in each release of OnionShare.
+* New feature: keyboard shortcuts to access various modes and menus, and accessibility hints
+* Bug fix: Temporary Directory for serving the OnionShare web pages was broken on Windows
+* Miscellaneous: many dependency updates, web page theming improvements, and packaging automation improvements.
+
+
+## 2.5
+
+* Security fix: Sanitize the path parameter in History item widget to be plain text
+* Security fix: Use microseconds in Receive mode directory creation to avoid potential DoS
+* Security fix: Several hardening improvements for session and username management in Chat mode, to prevent impersonation and other issues
+* Major feature: Obtain bridges from Moat / BridgeDB (over a domain-fronted Meek client)
+* Major feature: Snowflake bridge support
+* New feature: Tor connection settings, as well as general settings, are now Tabs rather than dialogs
+* New feature: User can customize the Content-Security-Policy header in Website mode
+* New feature: Built-in bridges are automatically updated from Tor's API when the user has chosen to use them
+* Switch to using our `stem` fork called `cepa`, which is now published on Pypi so we can build it in releases
+* Various bug fixes
+
 ## 2.4
 
 * Major feature: Private keys (v3 onion client authentication) replaces passwords and HTTP basic auth
@@ -110,7 +133,7 @@
 ## 1.3
 
 * Major UI redesign, introducing many UX improvements
-* Client-side web interfact redesigned
+* Client-side web interface redesigned
 * New feature: Support for meek_lite pluggable transports (Amazon and Azure) - not yet ready for Windows or macOS, sorry
 * New feature: Support for custom obfs4 and meek_lite bridges (again, meek_lite not available on Windows/macOS yet)
 * New feature: Ability to cancel share before it starts

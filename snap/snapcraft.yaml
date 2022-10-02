@@ -1,21 +1,26 @@
 name: onionshare
-base: core18
-version: '2.4.1'
+base: core20
+version: "2.6"
 summary: Securely and anonymously share files, host websites, and chat using Tor
 description: |
-  OnionShare lets you securely and anonymously send and receive files. It works by starting 
-  a web server, making it accessible as a Tor onion service, and generating an unguessable 
-  web address so others can download files from you, or upload files to you. It does _not_ 
+  OnionShare lets you securely and anonymously send and receive files. It works by starting
+  a web server, making it accessible as a Tor onion service, and generating an unguessable
+  web address so others can download files from you, or upload files to you. It does _not_
   require setting up a separate server or using a third party file-sharing service.
 
 grade: stable # stable or devel
 confinement: strict
 
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+  - build-on: armhf
+
 apps:
   onionshare:
     common-id: org.onionshare.OnionShare
-    command: onionshare
-    extensions: [ gnome-3-34 ]
+    command: bin/onionshare
+    extensions: [gnome-3-38]
     plugs:
       - desktop
       - home
@@ -24,10 +29,10 @@ apps:
       - removable-media
     environment:
       LANG: C.UTF-8
-  
+
   cli:
     common-id: org.onionshare.OnionShareCli
-    command: onionshare-cli
+    command: bin/onionshare-cli
     plugs:
       - home
       - network
@@ -38,13 +43,13 @@ apps:
 
 parts:
   onionshare:
-    source: ./desktop/src
+    source: ./desktop
     plugin: python
-    python-version: python3
     python-packages:
-      - psutil
-      - pyside2 == 5.15.2
       - qrcode
+      - pyside2 == 5.15.2.1
+    override-build: |
+      python3 setup.py install --prefix $SNAPCRAFT_PART_INSTALL
     stage-packages:
       - libasound2
       - libatk1.0-0
@@ -60,7 +65,7 @@ parts:
       - libglx0
       - libgtk-3-0
       - libharfbuzz0b
-      - libicu60
+      - libicu66
       - libjpeg8
       - liblcms2-2
       - libnspr4
@@ -112,42 +117,33 @@ parts:
   onionshare-cli:
     source: ./cli
     plugin: python
-    python-version: python3
     python-packages:
-      - click
-      - flask
-      - flask-socketio == 5.0.1
-      - psutil
-      - pysocks
-      - requests
-      - unidecode
-      - urllib3
-      - eventlet
-      - setuptools
-      - pynacl
-      - colorama
-      - cepa == 1.8.3
+      - poetry
     stage-packages:
       - build-essential
       - libssl-dev
       - libffi-dev
       - python3-dev
+      - python3-pip
       - cargo
-    stage:
-      - -usr/lib/x86_64-linux-gnu/libcrypto.so.1.1
-      - -usr/share/doc/libssl1.1/changelog.Debian.gz
+    override-build: |
+      poetry install
+      poetry build
+      python3 -m pip install ./dist/onionshare_cli-*.whl --prefix $SNAPCRAFT_PART_INSTALL
     after: [tor, obfs4, snowflake-client, meek-client]
 
   tor:
-    source: https://dist.torproject.org/tor-0.4.6.8.tar.gz
-    source-checksum: sha256/15ce1a37b4cc175b07761e00acdcfa2c08f0d23d6c3ab9c97c464bd38cc5476a
+    source: https://dist.torproject.org/tor-0.4.7.9.tar.gz
+    source-checksum: sha256/d39d38598208f4d6201d7edc6ad573b3a898a932a5c68d3074016a9525519b22
     source-type: tar
     plugin: autotools
+    autotools-configure-parameters:
+      - "--with-libevent-dir=/root/parts/libevent/install/usr/local"
     build-packages:
       - libssl-dev
       - zlib1g-dev
     after: [libevent]
-  
+
   libevent:
     source: https://github.com/libevent/libevent/releases/download/release-2.1.12-stable/libevent-2.1.12-stable.tar.gz
     source-checksum: sha256/92e6de1be9ec176428fd2367677e61ceffc2ee1cb119035037a27d346b0403bb
@@ -156,27 +152,24 @@ parts:
 
   obfs4:
     plugin: go
-    go-importpath: gitlab.com/yawning/obfs4
-    source: https://gitlab.com/yawning/obfs4
+    source: https://gitlab.com/yawning/obfs4.git
     source-type: git
+    source-tag: obfs4proxy-0.0.13
 
   snowflake-client:
     plugin: go
-    go-importpath: git.torproject.org/pluggable-transports/snowflake.git/client
     source: https://git.torproject.org/pluggable-transports/snowflake.git
     source-type: git
-    source-tag: v2.0.1
+    source-tag: v2.2.0
     organize:
       bin/client: bin/snowflake-client
 
   meek-client:
     plugin: go
-    go-channel: stable
-    go-importpath: git.torproject.org/pluggable-transports/meek.git/meek-client
-    # Not sure why I have to do this, but it works
-    override-build: |
-      cd meek-client
-      go build -o /root/parts/meek-client/install/bin ./...
     source: https://git.torproject.org/pluggable-transports/meek.git
     source-type: git
     source-tag: v0.37.0
+    override-build: |
+      cd meek-client
+      mkdir -p /root/parts/meek-client/install/bin
+      go build -o /root/parts/meek-client/install/bin/meek-client ./...
